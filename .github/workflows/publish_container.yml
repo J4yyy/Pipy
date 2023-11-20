@@ -1,0 +1,41 @@
+name: Publish Container
+
+on:
+  release:
+    types: [ published ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: pipy
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '18'
+
+      - name: Build Jar with Maven
+        run: mvn -B clean install
+
+      - name: Convert to lowercase
+        id: convert
+        run: |
+          lowercase_user=$(echo ${{ github.REPOSITORY_OWNER }} | tr '[:upper:]' '[:lower:]')
+          echo "lowercase_owner=$lowercase_user" >> $GITHUB_OUTPUT
+
+      - name: Build Container image
+        run: docker build . --file Dockerfile --tag ${{ env.REGISTRY }}/${{ steps.convert.outputs.lowercase_owner }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+
+      - name: Login to ${{ env.REGISTRY }}
+        run: echo ${{ secrets.GHCR_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.REPOSITORY_OWNER }} --password-stdin
+
+      - name: Push Container
+        run: docker push ${{ env.REGISTRY }}/${{ steps.convert.outputs.lowercase_owner }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}

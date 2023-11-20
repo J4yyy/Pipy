@@ -1,0 +1,4 @@
+.env
+.idea
+dependency-reduced-pom.xml
+target
